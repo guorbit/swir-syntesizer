@@ -49,7 +49,7 @@ class MaskedAutoencoderViT(nn.Module):
             for i in range(decoder_depth)])
 
         self.decoder_norm = norm_layer(decoder_embed_dim)
-        self.decoder_pred = nn.Linear(decoder_embed_dim, patch_size**2 * in_chans, bias=True) # decoder to patch
+        self.decoder_pred = nn.Linear(decoder_embed_dim, patch_size**2 * 1, bias=True) # decoder to patch
         # --------------------------------------------------------------------------
 
         self.norm_pix_loss = norm_pix_loss
@@ -110,9 +110,9 @@ class MaskedAutoencoderViT(nn.Module):
         h = w = int(x.shape[1]**.5)
         assert h * w == x.shape[1]
 
-        x = x.reshape(shape=(x.shape[0], h, w, p, p, self.in_chans))
+        x = x.reshape(shape=(x.shape[0], h, w, p, p, 1))
         x = torch.einsum('nhwpqc->nchpwq', x)
-        imgs = x.reshape(shape=(x.shape[0], self.in_chans, h * p, h * p))
+        imgs = x.reshape(shape=(x.shape[0], 1, h * p, h * p))
         return imgs
 
     def random_masking(self, x, mask_ratio):
@@ -158,13 +158,11 @@ class MaskedAutoencoderViT(nn.Module):
         x = torch.cat((cls_tokens, x), dim=1)
 
         # apply Transformer blocks
-        attentions = []
         for blk in self.blocks:
-            x, attention = blk(x)
-            attentions.append(attention)
+            x = blk(x)
         x = self.norm(x)
 
-        return x, mask, ids_restore,attentions
+        return x, mask, ids_restore
 
     def forward_decoder(self, x, ids_restore):
         # embed tokens
@@ -181,7 +179,7 @@ class MaskedAutoencoderViT(nn.Module):
 
         # apply Transformer blocks
         for blk in self.decoder_blocks:
-            x,_ = blk(x)
+            x = blk(x)
         x = self.decoder_norm(x)
 
         # predictor projection
@@ -212,10 +210,11 @@ class MaskedAutoencoderViT(nn.Module):
         return loss
 
     def forward(self, imgs, mask_ratio=0.0):
-        latent, mask, ids_restore,attention = self.forward_encoder(imgs, mask_ratio)
+        latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
-        loss = self.forward_loss(imgs, pred, mask)
-        return pred, mask,attention, loss
+        # loss = self.forward_loss(imgs, pred, mask)
+        loss = 0
+        return pred, mask, loss
 
 
     def _get_intermediate_layers_not_chunked(self, x, n=1):

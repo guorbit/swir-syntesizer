@@ -120,7 +120,7 @@ class Attention(nn.Module):
         x = (attn @ v).transpose(1, 2).reshape(B, N, C)
         x = self.proj(x)
         x = self.proj_drop(x)
-        return x, attn
+        return x
 
 
 class LayerScale(nn.Module):
@@ -141,10 +141,10 @@ class Block(nn.Module):
             num_heads,
             mlp_ratio=4.,
             qkv_bias=False,
-            drop=0.,
-            attn_drop=0.,
+            drop=0.1,
+            attn_drop=0.1,
             init_values=None,
-            drop_path=0.,
+            drop_path=0.1,
             act_layer=nn.GELU,
             norm_layer=nn.LayerNorm
     ):
@@ -163,7 +163,7 @@ class Block(nn.Module):
     def forward(self, x):
 
         x1 = self.norm1(x)
-        x1, attention = self.attn(x1)
+        x1 = self.attn(x1)
 
         x1 = self.ls1(x1)
         x = x + self.drop_path1(x1)
